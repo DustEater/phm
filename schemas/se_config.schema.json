@@ -1,0 +1,184 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "PHM Configuration Schema",
+    "description": "PHM (Platform Health Management) JSON 配置文件格式定义",
+    "type": "object",
+    "properties": {
+        "global": {
+            "type": "object",
+            "description": "全局 PHM 配置",
+            "properties": {
+                "tick_interval_ms": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 10000,
+                    "default": 100,
+                    "description": "引擎心跳周期 (ms)"
+                },
+                "log_dir": {
+                    "type": "string",
+                    "default": "/var/log/phmd",
+                    "description": "日志目录"
+                },
+                "enable_auto_recovery": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "是否启用自动恢复"
+                },
+                "event_queue_size": {
+                    "type": "integer",
+                    "minimum": 64,
+                    "maximum": 65536,
+                    "default": 1024,
+                    "description": "事件队列容量"
+                }
+            },
+            "additionalProperties": false
+        },
+        "supervised_entities": {
+            "type": "array",
+            "description": "监督实体列表",
+            "items": {
+                "$ref": "#/definitions/EntityConfig"
+            }
+        }
+    },
+    "required": ["supervised_entities"],
+    "additionalProperties": false,
+    "definitions": {
+        "EntityConfig": {
+            "type": "object",
+            "description": "监督实体配置",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "SE 名称（唯一标识）",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "描述"
+                },
+                "alive_timeout_ms": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "default": 5000,
+                    "description": "存活超时 (ms)"
+                },
+                "auto_restart": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "是否自动重启"
+                },
+                "max_restart_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 3,
+                    "description": "最大重启次数"
+                },
+                "restart_delay_s": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 5,
+                    "description": "重启延迟 (s)"
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "是否启用该实体"
+                },
+                "dependencies": {
+                    "type": "array",
+                    "description": "依赖的 SE 名称列表",
+                    "items": {
+                        "type": "string"
+                    },
+                    "uniqueItems": true
+                },
+                "monitors": {
+                    "type": "array",
+                    "description": "Monitor 配置列表",
+                    "items": {
+                        "$ref": "#/definitions/MonitorConfig"
+                    }
+                }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+        },
+        "MonitorConfig": {
+            "type": "object",
+            "description": "Monitor 配置",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "监控类型",
+                    "enum": ["process_lifecycle", "resource", "deadlock", "alive", "custom"]
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "interval_ms": {
+                    "type": "integer",
+                    "minimum": 50,
+                    "default": 1000,
+                    "description": "检测周期 (ms)"
+                },
+                "timeout_ms": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "default": 5000,
+                    "description": "检测超时 (ms)"
+                },
+                "debounce_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 3,
+                    "description": "抖动抑制连续次数"
+                },
+                "warn_threshold": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "警告阈值（通用）"
+                },
+                "error_threshold": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "错误阈值（通用）"
+                },
+                "warn_threshold_cpu": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "CPU 警告阈值 (%)"
+                },
+                "error_threshold_cpu": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "CPU 错误阈值 (%)"
+                },
+                "warn_threshold_memory_mb": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "内存警告阈值 (MB)"
+                },
+                "error_threshold_memory_mb": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "内存错误阈值 (MB)"
+                },
+                "params": {
+                    "type": "object",
+                    "description": "监控特有参数（key-value 对）",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["type"],
+            "additionalProperties": false
+        }
+    }
+}

@@ -1,0 +1,50 @@
+# PHM Project - Platform Health Management
+
+# Build artifacts
+build/
+lib/
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+*.cmake
+!CMakeLists.txt
+
+# Compilation
+*.o
+*.obj
+*.so
+*.a
+*.dylib
+*.exe
+
+# Testing artifacts
+Testing/
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+
+# Logs
+*.log
+/var/log/phmd/
+
+# Runtime
+*.pid
+*.sock
+/tmp/phmd.sock
