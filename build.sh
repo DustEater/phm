@@ -99,24 +99,21 @@ esac
 # QNX 平台检查
 # =============================================================================
 if [[ "${PLATFORM}" == "qnx" ]]; then
+    # 默认 QNX SDP 路径（可通过环境变量覆盖）
+    QNX_HOST="${QNX_HOST:-/opt/qnx800/host/linux/x86_64}"
+    QNX_TARGET="${QNX_TARGET:-/opt/qnx800/target/qnx8}"
+    export QNX_HOST
+    export QNX_TARGET
+
     TOOLCHAIN_FILE="${PROJECT_DIR}/cmake/qnx-aarch64.cmake"
     if [[ ! -f "${TOOLCHAIN_FILE}" ]]; then
         echo "错误: QNX toolchain 文件不存在: ${TOOLCHAIN_FILE}"
-        echo "请创建该文件，参考模板:"
-        echo ""
-        echo '  set(CMAKE_SYSTEM_NAME QNX)'
-        echo '  set(CMAKE_SYSTEM_PROCESSOR aarch64)'
-        echo '  set(QNX_HOST "/opt/qnx710/host/linux/x86_64")'
-        echo '  set(QNX_TARGET "/opt/qnx710/target/qnx7")'
-        echo '  set(CMAKE_C_COMPILER "${QNX_HOST}/usr/bin/qcc")'
-        echo '  set(CMAKE_CXX_COMPILER "${QNX_HOST}/usr/bin/q++")'
-        echo '  set(CMAKE_SYSROOT "${QNX_TARGET}")'
-        echo '  set(CMAKE_FIND_ROOT_PATH "${QNX_TARGET}")'
-        echo '  ...'
         exit 1
     fi
     echo "[PHM] 配置 QNX 交叉编译..."
     echo "[PHM]   Toolchain: ${TOOLCHAIN_FILE}"
+    echo "[PHM]   QNX_HOST:   ${QNX_HOST}"
+    echo "[PHM]   QNX_TARGET: ${QNX_TARGET}"
 else
     echo "[PHM] 配置 Linux 原生编译..."
 fi
