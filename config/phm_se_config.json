@@ -3,7 +3,11 @@
         "tick_interval_ms": 100,
         "log_dir": "/var/log/phmd",
         "enable_auto_recovery": true,
-        "event_queue_size": 1024
+        "event_queue_size": 1024,
+        "app_name": "phmd",
+        "version": "1.0.0",
+        "ipc_endpoint": "/tmp/phmd.sock",
+        "config_path": "/etc/phm/se_config.json"
     },
     "supervised_entities": [
         {

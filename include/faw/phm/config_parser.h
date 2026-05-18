@@ -9,6 +9,12 @@
 namespace faw {
 namespace phm {
 
+/// 配置解析结果
+struct ParseResult {
+  PhmConfig global;                ///< 全局配置
+  std::vector<SEConfig> entities;  ///< SE 配置列表
+};
+
 /// 配置解析器
 ///
 /// 解析 JSON 格式的 SE 配置文件。
@@ -17,15 +23,15 @@ class ConfigParser {
  public:
   /// @brief 从 JSON 文件解析
   /// @param json_path JSON 文件路径
-  /// @return SEConfig 列表
+  /// @return ParseResult（包含 global 配置和 SE 配置列表）
   /// @throws std::runtime_error 解析失败时抛出
-  static std::vector<SEConfig> parseFile(const std::string& json_path);
+  static ParseResult parseFile(const std::string& json_path);
 
   /// @brief 从 JSON 字符串解析
   /// @param json_content JSON 内容字符串
-  /// @return SEConfig 列表
+  /// @return ParseResult（包含 global 配置和 SE 配置列表）
   /// @throws std::runtime_error 解析失败时抛出
-  static std::vector<SEConfig> parseString(const std::string& json_content);
+  static ParseResult parseString(const std::string& json_content);
 
   /// @brief 校验 JSON 配置文件合法性
   /// @param json_path JSON 文件路径

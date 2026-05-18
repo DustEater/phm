@@ -39,8 +39,9 @@ class PhmEngine::Impl {
 
   bool loadConfiguration(const std::string& xml_path) {
     try {
-      auto configs = ConfigParser::parseFile(xml_path);
-      for (auto& cfg : configs) {
+      auto result = ConfigParser::parseFile(xml_path);
+      config_ = result.global;
+      for (auto& cfg : result.entities) {
         if (!addSupervisedEntity(std::move(cfg))) {
           PHM_LOG_WARN("Failed to add entity from config");
         }

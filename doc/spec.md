@@ -98,9 +98,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    CFG["JSON Config"] --> CP["ConfigParser"]
-    CP --> SEC["SEConfig"]
-    SEC --> PE["PhmEngine"]
+    CFG("JSON Config") --> CP["ConfigParser"]
+    CP -->|"global 段"| GBL["PhmConfig"]
+    CP -->|"supervised_entities"| SEC["SEConfig[]"]
+    GBL --> PE["PhmEngine"]
+    SEC --> PE
 
     PE --> PLM["ProcessLifecycle Monitor"]
     PE --> RM["Resource Monitor"]
@@ -480,7 +482,7 @@ public:
     PhmEngine(const PhmEngine&) = delete;
     PhmEngine& operator=(const PhmEngine&) = delete;
 
-    /// 加载 JSON 配置
+    /// 加载 JSON 配置文件（同时解析 global 段并应用为引擎配置）
     bool loadConfiguration(const std::string& json_path);
 
     /// 直接添加 SE 配置
@@ -597,15 +599,22 @@ private:
     ~Logger() = default;
 };
 
+// ===== ParseResult =====
+/// 配置解析结果（parseFile / parseString 的返回值）
+struct ParseResult {
+    PhmConfig                   global;     ///< 全局配置（来自 JSON global 段）
+    std::vector<SEConfig>       entities;   ///< SE 配置列表（来自 JSON supervised_entities 段）
+};
+
 // ===== ConfigParser =====
 /// SE 配置文件解析器（JSON 格式）
 class ConfigParser {
 public:
-    /// 解析 JSON 配置文件，返回 SEConfig 列表
-    static std::vector<SEConfig> parseFile(const std::string& json_path);
+    /// 解析 JSON 配置文件，返回 ParseResult
+    static ParseResult parseFile(const std::string& json_path);
 
     /// 从 JSON 字符串解析
-    static std::vector<SEConfig> parseString(const std::string& json_content);
+    static ParseResult parseString(const std::string& json_content);
 
     /// 验证 JSON 是否符合 Schema
     static bool validate(const std::string& json_path);
@@ -704,7 +713,7 @@ Unix Domain Socket 协议（JSON over UDS）：
 
 ### 6.1 JSON Schema
 
-参见 `schemas/se_config.schema.json`。例：
+参见 `schemas/se_config.schema.json`。`global` 段支持映射 `PhmConfig` 的所有字段，例：
 
 ```json
 {
@@ -712,7 +721,11 @@ Unix Domain Socket 协议（JSON over UDS）：
         "tick_interval_ms": 100,
         "log_dir": "/var/log/phmd",
         "enable_auto_recovery": true,
-        "event_queue_size": 1024
+        "event_queue_size": 1024,
+        "app_name": "phmd",
+        "version": "1.0.0",
+        "ipc_endpoint": "/tmp/phmd.sock",
+        "config_path": "/etc/phm/se_config.json"
     },
     "supervised_entities": [
         {

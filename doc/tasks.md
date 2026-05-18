@@ -174,7 +174,7 @@
 
 ### 5.1 配置解析器
 - [x] 5.1.1 实现 `include/faw/phm/config_parser.h` + `src/config_parser.cpp`
-- [x] 5.1.2 JSON 解析（使用 nlohmann/json 单头文件库）
+- [x] 5.1.2 JSON 解析（使用 nlohmann/json 单头文件库），支持 `global` 段解析并映射为 `PhmConfig`
 - [x] 5.1.3 SEConfig 结构体构建
 - [x] 5.1.4 错误处理和友好的解析错误信息
 - [x] 5.1.5 Schema 校验（基本字段类型/范围检查）

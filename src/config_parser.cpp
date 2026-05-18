@@ -85,13 +85,43 @@ SEConfig parseEntityConfig(const json& j) {
   return cfg;
 }
 
+PhmConfig parseGlobalConfig(const json& j) {
+  PhmConfig config;
+  if (j.contains("global")) {
+    const json& global = j["global"];
+    if (global.contains("tick_interval_ms")) {
+      config.tick_interval = std::chrono::milliseconds(
+          global["tick_interval_ms"].get<uint64_t>());
+    }
+    if (global.contains("log_dir")) {
+      config.log_dir = global["log_dir"].get<std::string>();
+    }
+    if (global.contains("enable_auto_recovery")) {
+      config.enable_auto_recovery = global["enable_auto_recovery"].get<bool>();
+    }
+    if (global.contains("event_queue_size")) {
+      config.event_queue_size = global["event_queue_size"].get<uint32_t>();
+    }
+    if (global.contains("app_name")) {
+      config.app_name = global["app_name"].get<std::string>();
+    }
+    if (global.contains("version")) {
+      config.version = global["version"].get<std::string>();
+    }
+    if (global.contains("ipc_endpoint")) {
+      config.ipc_endpoint = global["ipc_endpoint"].get<std::string>();
+    }
+  }
+  return config;
+}
+
 }  // anonymous namespace
 
 // =============================================================================
 // 公共接口
 // =============================================================================
 
-std::vector<SEConfig> ConfigParser::parseFile(const std::string& json_path) {
+ParseResult ConfigParser::parseFile(const std::string& json_path) {
   std::ifstream file(json_path);
   if (!file.is_open()) {
     s_last_error = "Cannot open file: " + json_path;
@@ -106,10 +136,16 @@ std::vector<SEConfig> ConfigParser::parseFile(const std::string& json_path) {
     throw std::runtime_error(s_last_error);
   }
 
-  return parseString(root.dump());
+  ParseResult result;
+  result.global = parseGlobalConfig(root);
+  json entities = root.value("supervised_entities", json::array());
+  for (const auto& item : entities) {
+    result.entities.push_back(parseEntityConfig(item));
+  }
+  return result;
 }
 
-std::vector<SEConfig> ConfigParser::parseString(const std::string& json_content) {
+ParseResult ConfigParser::parseString(const std::string& json_content) {
   json root;
   try {
     root = json::parse(json_content);
@@ -118,18 +154,19 @@ std::vector<SEConfig> ConfigParser::parseString(const std::string& json_content)
     throw std::runtime_error(s_last_error);
   }
 
-  std::vector<SEConfig> configs;
+  ParseResult result;
+  result.global = parseGlobalConfig(root);
   json entities = root.value("supervised_entities", json::array());
   for (const auto& item : entities) {
-    configs.push_back(parseEntityConfig(item));
+    result.entities.push_back(parseEntityConfig(item));
   }
-  return configs;
+  return result;
 }
 
 bool ConfigParser::validate(const std::string& json_path) {
   try {
-    auto configs = parseFile(json_path);
-    for (const auto& cfg : configs) {
+    auto result = parseFile(json_path);
+    for (const auto& cfg : result.entities) {
       if (cfg.name.empty()) {
         s_last_error = "Entity name is empty";
         return false;
