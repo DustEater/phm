@@ -9,8 +9,6 @@
 
 #include "daemon.h"
 
-using namespace faw::phm;
-
 static void printUsage(const char* prog) {
   std::fprintf(stderr,
                "Usage: %s [options]\n"
@@ -26,7 +24,7 @@ static void printUsage(const char* prog) {
 }
 
 int main(int argc, char* argv[]) {
-  DaemonConfig config;
+  faw::phm::DaemonConfig config;
 
   // 解析参数
   int opt;
@@ -59,7 +57,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  Daemon daemon(std::move(config));
+  faw::phm::Daemon daemon(std::move(config));
 
   if (!daemon.initialize()) {
     std::fprintf(stderr, "Failed to initialize daemon\n");

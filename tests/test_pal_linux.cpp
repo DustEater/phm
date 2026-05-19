@@ -2,18 +2,16 @@
 
 #include "faw/phm/platform.h"
 
-using namespace faw::phm;
-
 // Linux 平台适配测试
 // 这些测试需要 Linux 环境支持
 
 TEST(PlatformLinuxTest, CreatePlatform) {
-  auto platform = Platform::create();
+  auto platform = faw::phm::Platform::create();
   EXPECT_NE(platform, nullptr);
 }
 
 TEST(PlatformLinuxTest, ProcessExists) {
-  auto platform = Platform::create();
+  auto platform = faw::phm::Platform::create();
   ASSERT_NE(platform, nullptr);
 
   // 当前进程应该存在
@@ -30,7 +28,7 @@ TEST(PlatformLinuxTest, ProcessExists) {
 }
 
 TEST(PlatformLinuxTest, SystemInfo) {
-  auto platform = Platform::create();
+  auto platform = faw::phm::Platform::create();
   ASSERT_NE(platform, nullptr);
 
   std::string hostname = platform->getHostname();
@@ -44,7 +42,7 @@ TEST(PlatformLinuxTest, SystemInfo) {
 }
 
 TEST(PlatformLinuxTest, CurrentProcessResource) {
-  auto platform = Platform::create();
+  auto platform = faw::phm::Platform::create();
   ASSERT_NE(platform, nullptr);
 
   pid_t self = getpid();
@@ -59,7 +57,7 @@ TEST(PlatformLinuxTest, CurrentProcessResource) {
 }
 
 TEST(PlatformLinuxTest, GetProcessId) {
-  auto platform = Platform::create();
+  auto platform = faw::phm::Platform::create();
   ASSERT_NE(platform, nullptr);
 
   // 当前进程应该能找到自己

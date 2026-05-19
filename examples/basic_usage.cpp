@@ -11,38 +11,36 @@
 
 #include "faw/phm/phm.h"
 
-using namespace faw::phm;
-
 int main() {
   // 1. 创建 PHM 引擎
   std::cout << "=== PHM 引擎初始化 ===" << std::endl;
-  PhmConfig config;
+  faw::phm::PhmConfig config;
   config.app_name = "phm_example";
   config.tick_interval = std::chrono::milliseconds(500);
   config.log_dir = "";  // 输出到 stderr
 
-  PhmEngine engine(config);
+  faw::phm::PhmEngine engine(config);
 
   // 2. 配置 SE
   std::cout << "=== 配置监督实体 ===" << std::endl;
 
   // 2a. 通过代码直接添加 SE
-  SEConfig se_cfg;
+  faw::phm::SEConfig se_cfg;
   se_cfg.name = "example_process";
   se_cfg.description = "示例监控进程";
   se_cfg.auto_restart = false;
   se_cfg.alive_timeout = std::chrono::milliseconds(3000);
 
   // 进程生命周期监控配置
-  MonitorConfig proc_mc;
-  proc_mc.type = MonitorType::PROCESS_LIFECYCLE;
+  faw::phm::MonitorConfig proc_mc;
+  proc_mc.type = faw::phm::MonitorType::PROCESS_LIFECYCLE;
   proc_mc.interval = std::chrono::milliseconds(1000);
   proc_mc.params["process_name"] = "nonexistent_process";  // 假设进程不存在
   se_cfg.monitors.push_back(proc_mc);
 
   // 资源监控配置
-  MonitorConfig res_mc;
-  res_mc.type = MonitorType::RESOURCE;
+  faw::phm::MonitorConfig res_mc;
+  res_mc.type = faw::phm::MonitorType::RESOURCE;
   res_mc.interval = std::chrono::milliseconds(2000);
   res_mc.warn_threshold = 80.0;   // CPU > 80% 告警
   res_mc.error_threshold = 95.0;  // CPU > 95% 错误
@@ -55,7 +53,7 @@ int main() {
   // engine.loadConfiguration("/etc/phm/se_config.xml");
 
   // 3. 设置全局状态变更回调
-  engine.setGlobalStateCallback([](SeState old_state, SeState new_state) {
+  engine.setGlobalStateCallback([](faw::phm::SeState old_state, faw::phm::SeState new_state) {
     std::cout << "[Global State] " << static_cast<int>(old_state) << " -> "
               << static_cast<int>(new_state) << std::endl;
   });

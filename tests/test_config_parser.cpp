@@ -2,8 +2,6 @@
 
 #include "faw/phm/config_parser.h"
 
-using namespace faw::phm;
-
 TEST(ConfigParserTest, ParseValidJson) {
   std::string json = R"({
     "supervised_entities": [
@@ -48,7 +46,7 @@ TEST(ConfigParserTest, ParseValidJson) {
     ]
   })";
 
-  auto result = ConfigParser::parseString(json);
+  auto result = faw::phm::ConfigParser::parseString(json);
 
   ASSERT_EQ(result.entities.size(), 2);
 
@@ -56,14 +54,14 @@ TEST(ConfigParserTest, ParseValidJson) {
   EXPECT_TRUE(result.entities[0].auto_restart);
   EXPECT_EQ(result.entities[0].max_restart_count, 3);
   EXPECT_EQ(result.entities[0].monitors.size(), 2);
-  EXPECT_EQ(result.entities[0].monitors[0].type, MonitorType::PROCESS_LIFECYCLE);
+  EXPECT_EQ(result.entities[0].monitors[0].type, faw::phm::MonitorType::PROCESS_LIFECYCLE);
   EXPECT_EQ(result.entities[0].monitors[0].interval.count(), 1000);
-  EXPECT_EQ(result.entities[0].monitors[1].type, MonitorType::RESOURCE);
+  EXPECT_EQ(result.entities[0].monitors[1].type, faw::phm::MonitorType::RESOURCE);
   EXPECT_DOUBLE_EQ(result.entities[0].monitors[1].warn_threshold, 80.0);
 
   EXPECT_EQ(result.entities[1].name, "camera_driver");
   EXPECT_EQ(result.entities[1].monitors.size(), 1);
-  EXPECT_EQ(result.entities[1].monitors[0].type, MonitorType::ALIVE);
+  EXPECT_EQ(result.entities[1].monitors[0].type, faw::phm::MonitorType::ALIVE);
 }
 
 TEST(ConfigParserTest, HandleEmptyMonitors) {
@@ -76,7 +74,7 @@ TEST(ConfigParserTest, HandleEmptyMonitors) {
     ]
   })";
 
-  auto result = ConfigParser::parseString(json);
+  auto result = faw::phm::ConfigParser::parseString(json);
   ASSERT_EQ(result.entities.size(), 1);
   EXPECT_TRUE(result.entities[0].monitors.empty());
 }
@@ -85,18 +83,18 @@ TEST(ConfigParserTest, HandleEmptyEntities) {
   std::string json = R"({
     "supervised_entities": []
   })";
-  auto result = ConfigParser::parseString(json);
+  auto result = faw::phm::ConfigParser::parseString(json);
   EXPECT_TRUE(result.entities.empty());
 }
 
 TEST(ConfigParserTest, ParseErrorOnInvalidJson) {
   std::string json = "not json at all";
-  EXPECT_THROW(ConfigParser::parseString(json), std::runtime_error);
+  EXPECT_THROW(faw::phm::ConfigParser::parseString(json), std::runtime_error);
 }
 
 TEST(ConfigParserTest, ParseErrorOnMalformedJson) {
   std::string json = R"({"supervised_entities": [{"name": "test")";
-  EXPECT_THROW(ConfigParser::parseString(json), std::runtime_error);
+  EXPECT_THROW(faw::phm::ConfigParser::parseString(json), std::runtime_error);
 }
 
 TEST(ConfigParserTest, Validate) {

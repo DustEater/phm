@@ -4,26 +4,24 @@
 #include "faw/phm/supervised_entity.h"
 #include "faw/phm/types.h"
 
-using namespace faw::phm;
-
 // =============================================================================
 // 状态机基础测试
 // =============================================================================
 
 TEST(StateMachineTest, InitialStateIsInit) {
-  SEConfig cfg;
+  faw::phm::SEConfig cfg;
   cfg.name = "test_entity";
-  SupervisedEntity se(cfg);
-  EXPECT_EQ(se.getState(), SeState::INIT);
+  faw::phm::SupervisedEntity se(cfg);
+  EXPECT_EQ(se.getState(), faw::phm::SeState::INIT);
 }
 
 TEST(StateMachineTest, StartTransitionsToRunning) {
-  SEConfig cfg;
+  faw::phm::SEConfig cfg;
   cfg.name = "test_entity";
   // 无 Monitor，start() 应返回但状态不变
   // 实际状态转换由 checkAll() 触发
-  SupervisedEntity se(cfg);
-  EXPECT_EQ(se.getState(), SeState::INIT);
+  faw::phm::SupervisedEntity se(cfg);
+  EXPECT_EQ(se.getState(), faw::phm::SeState::INIT);
 }
 
 // =============================================================================
@@ -31,37 +29,37 @@ TEST(StateMachineTest, StartTransitionsToRunning) {
 // =============================================================================
 
 TEST(StateMachineTest, NonStrictJumps) {
-  SEConfig cfg;
+  faw::phm::SEConfig cfg;
   cfg.name = "test_entity";
-  SupervisedEntity se(cfg);
-  EXPECT_EQ(se.getState(), SeState::INIT);
+  faw::phm::SupervisedEntity se(cfg);
+  EXPECT_EQ(se.getState(), faw::phm::SeState::INIT);
 }
 
 TEST(StateMachineTest, DebounceTransition) {
   // 验证抖动抑制
-  MonitorConfig mc;
-  mc.type = MonitorType::CUSTOM;
+  faw::phm::MonitorConfig mc;
+  mc.type = faw::phm::MonitorType::CUSTOM;
   mc.debounce_count = 3;
 
-  SEConfig cfg;
+  faw::phm::SEConfig cfg;
   cfg.name = "test";
   cfg.monitors.push_back(mc);
-  SupervisedEntity se(cfg);
+  faw::phm::SupervisedEntity se(cfg);
 
   // 模拟连续 3 次故障事件
-  PhmEvent evt;
+  faw::phm::PhmEvent evt;
   evt.source_monitor = "custom_1";
-  evt.severity = Severity::ERROR;
+  evt.severity = faw::phm::Severity::ERROR;
 
   se.onMonitorEvent(evt);
-  EXPECT_EQ(se.getState(), SeState::SUSPECT);  // 第1次: 可疑
+  EXPECT_EQ(se.getState(), faw::phm::SeState::SUSPECT);  // 第1次: 可疑
 
   se.onMonitorEvent(evt);
-  EXPECT_EQ(se.getState(), SeState::SUSPECT);  // 第2次: 仍可疑
+  EXPECT_EQ(se.getState(), faw::phm::SeState::SUSPECT);  // 第2次: 仍可疑
 
   se.onMonitorEvent(evt);
   // 第3次: 达到 debounce_count=3，应进入 ERROR
-  EXPECT_EQ(se.getState(), SeState::ERROR);
+  EXPECT_EQ(se.getState(), faw::phm::SeState::ERROR);
 }
 
 // =============================================================================
@@ -69,7 +67,7 @@ TEST(StateMachineTest, DebounceTransition) {
 // =============================================================================
 
 TEST(HealthChannelTest, ReportAndCheck) {
-  HealthChannel hc("test_channel", std::chrono::milliseconds(1000));
+  faw::phm::HealthChannel hc("test_channel", std::chrono::milliseconds(1000));
 
   // 被监督进程上报
   EXPECT_TRUE(hc.report(1));
@@ -84,20 +82,20 @@ TEST(HealthChannelTest, ReportAndCheck) {
 // =============================================================================
 
 TEST(MonitorFactoryTest, CreateBuiltinMonitors) {
-  MonitorConfig mc;
+  faw::phm::MonitorConfig mc;
   mc.params["process_name"] = "test_proc";
 
   auto monitor =
-      MonitorFactory::create(MonitorType::PROCESS_LIFECYCLE, "test", mc);
+      faw::phm::MonitorFactory::create(faw::phm::MonitorType::PROCESS_LIFECYCLE, "test", mc);
   EXPECT_NE(monitor, nullptr);
   EXPECT_EQ(monitor->name(), "test");
-  EXPECT_EQ(monitor->getType(), MonitorType::PROCESS_LIFECYCLE);
+  EXPECT_EQ(monitor->getType(), faw::phm::MonitorType::PROCESS_LIFECYCLE);
 }
 
 TEST(MonitorFactoryTest, UnknownTypeReturnsNull) {
-  MonitorConfig mc;
+  faw::phm::MonitorConfig mc;
   auto monitor =
-      MonitorFactory::create(static_cast<MonitorType>(99), "unknown", mc);
+      faw::phm::MonitorFactory::create(static_cast<faw::phm::MonitorType>(99), "unknown", mc);
   EXPECT_EQ(monitor, nullptr);
 }
 
@@ -106,11 +104,11 @@ TEST(MonitorFactoryTest, UnknownTypeReturnsNull) {
 // =============================================================================
 
 TEST(PhmEngineTest, CreateAndStart) {
-  PhmEngine engine(PhmConfig{});
+  faw::phm::PhmEngine engine(faw::phm::PhmConfig{});
   EXPECT_FALSE(engine.isRunning());
 
   // 添加测试 SE
-  SEConfig cfg;
+  faw::phm::SEConfig cfg;
   cfg.name = "test_se";
   engine.addSupervisedEntity(std::move(cfg));
 
@@ -129,18 +127,18 @@ TEST(PhmEngineTest, CreateAndStart) {
 }
 
 TEST(PhmEngineTest, GlobalStateAggregation) {
-  PhmEngine engine(PhmConfig{});
+  faw::phm::PhmEngine engine(faw::phm::PhmConfig{});
 
-  SEConfig cfg1;
+  faw::phm::SEConfig cfg1;
   cfg1.name = "se_1";
   engine.addSupervisedEntity(std::move(cfg1));
 
-  SEConfig cfg2;
+  faw::phm::SEConfig cfg2;
   cfg2.name = "se_2";
   engine.addSupervisedEntity(std::move(cfg2));
 
   engine.start();
-  EXPECT_EQ(engine.getGlobalState(), SeState::RUNNING);
+  EXPECT_EQ(engine.getGlobalState(), faw::phm::SeState::RUNNING);
   engine.stop();
 }
 

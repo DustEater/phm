@@ -36,14 +36,14 @@ PHM（Platform Health Management）是智能驾驶系统中的平台健康管理
 ```mermaid
 flowchart TB
     subgraph Top["上层应用 / 集成方"]
-        APP["ADAS Middleware, SOA Framework"]
+        APP["ADAS Middleware<br/>SOA Framework"]
     end
 
     subgraph Lib["faw::phm API (libphm.so)"]
         direction TB
-        ENGINE["PhmEngine\n入口 / 编排"]
-        SEMGR["SE Manager\n实体管理"]
-        SM["StateMachine\n非严格状态机"]
+        ENGINE["PhmEngine<br/>入口 / 编排"]
+        SEMGR["SE Manager<br/>实体管理"]
+        SM["StateMachine<br/>非严格状态机"]
         MF["Monitor Framework"]
         PLM["ProcessLifecycle Monitor"]
         RM["Resource Monitor"]
@@ -54,8 +54,8 @@ flowchart TB
 
     subgraph PAL["Platform Abstraction Layer (PAL)"]
         direction TB
-        LINUX["Linux Adaptor\n/proc, signal, timerfd, inotify"]
-        QNX["QNX Adaptor\nprocnto, signal, pulse, channel"]
+        LINUX["Linux Adaptor<br/>/proc, signal, timerfd, inotify"]
+        QNX["QNX Adaptor<br/>procnto, signal, pulse, channel"]
     end
 
     APP --> ENGINE
@@ -79,14 +79,14 @@ flowchart TB
 flowchart TB
     subgraph PHMD["phmd (守护进程)"]
         direction TB
-        IPC["IPC Server\nUnix Domain Socket"]
-        PE["PhmEngine\n状态聚合 / 告警"]
-        MG["Monitor Group\n各 SE 的 Monitor"]
+        IPC["IPC Server<br/>Unix Domain Socket"]
+        PE["PhmEngine<br/>状态聚合 / 告警"]
+        MG["Monitor Group<br/>各 SE 的 Monitor"]
     end
 
     subgraph UP["上游进程 (集成方)"]
         CLI["faw::phm::Client"]
-        E2["faw::phm::Engine\n(libphm.so)"]
+        E2["faw::phm::Engine<br/>(libphm.so)"]
     end
 
     IPC <==> |IPC / JSON-RPC| CLI
@@ -117,8 +117,8 @@ flowchart LR
     PAL --> KERNEL["Linux / QNX Kernel"]
 
     PE --> DR["DataReporter"]
-    DR --> LOCAL["Local File\n(.jsonl)"]
-    DR --> UPLOAD["Uploader\n云端上传接口"]
+    DR --> LOCAL["Local File<br/>(.jsonl)"]
+    DR --> UPLOAD["Uploader<br/>云端上传接口"]
 ```
 
 ***
@@ -236,20 +236,20 @@ stateDiagram-v2
 
 ```mermaid
 flowchart LR
-    ME["Monitor 事件"] --> DW["Debounce Window\n(可配置滑动窗口)"]
+    ME["Monitor 事件"] --> DW["Debounce Window<br/>(可配置滑动窗口)"]
     DW --> SC["状态转换"]
 
     subgraph Example["例: CPU > 90% 持续 5 次检测"]
-        T1["第 1 次"] -->|"进入 SUSPECT\n计数器 = 1"| T2["第 2 次"]
+        T1["第 1 次"] -->|"进入 SUSPECT<br/>计数器 = 1"| T2["第 2 次"]
         T2 -->|"计数器 = 2"| T3["第 3 次"]
         T3 -->|"计数器 = 3"| T4["第 4 次"]
         T4 -->|"计数器 = 4"| T5["第 5 次"]
-        T5 -->|"计数器 = 5\n➜ 进入 WARN"| END
+        T5 -->|"计数器 = 5<br/>➜ 进入 WARN"| END
     end
 
     ME -.-> Example
 
-    R["若在第 3 次恢复正常"] -->|"计数器清 0\n➜ 回到 RUNNING"| RUN
+    R["若在第 3 次恢复正常"] -->|"计数器清 0<br/>➜ 回到 RUNNING"| RUN
 ```
 
 ***
