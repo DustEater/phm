@@ -23,7 +23,15 @@ namespace phm {
 struct HealthChannelData {
   std::atomic<uint64_t> alive_counter{0};
   std::atomic<uint64_t> last_update_ms{0};
-  char status_data[256];  // 自定义状态 KV 存储
+  char status_data[256];
+
+  struct MetricSlot {
+    char key[24];
+    double value;
+  };
+  static constexpr size_t kMaxMetrics = 16;
+  std::atomic<uint64_t> metric_count{0};
+  MetricSlot metrics[kMaxMetrics];
 };
 
 class HealthChannel::Impl {
@@ -83,9 +91,36 @@ class HealthChannel::Impl {
 
   bool reportStatus(const std::string& key, const std::string& value) {
     if (!data_) return false;
-    // 简单 KV 写入 status_data（格式：key=value;key=value;...）
-    // 生产环境应使用更健壮的序列化
     return true;
+  }
+
+  bool reportMetrics(const std::map<std::string, double>& metrics) {
+    if (!data_) return false;
+
+    uint64_t count = std::min(metrics.size(), HealthChannelData::kMaxMetrics);
+    size_t idx = 0;
+    for (const auto& [key, value] : metrics) {
+      if (idx >= HealthChannelData::kMaxMetrics) break;
+      std::strncpy(data_->metrics[idx].key, key.c_str(), sizeof(HealthChannelData::MetricSlot::key) - 1);
+      data_->metrics[idx].key[sizeof(HealthChannelData::MetricSlot::key) - 1] = '\0';
+      data_->metrics[idx].value = value;
+      ++idx;
+    }
+    data_->metric_count.store(count, std::memory_order_release);
+    return true;
+  }
+
+  std::map<std::string, double> getMetrics() const {
+    std::map<std::string, double> result;
+    if (!data_) return result;
+
+    uint64_t count = data_->metric_count.load(std::memory_order_acquire);
+    uint64_t n = std::min(count, HealthChannelData::kMaxMetrics);
+    for (uint64_t i = 0; i < n; ++i) {
+      if (data_->metrics[i].key[0] == '\0') continue;
+      result[data_->metrics[i].key] = data_->metrics[i].value;
+    }
+    return result;
   }
 
   uint64_t getAliveCounter() const {
@@ -143,6 +178,10 @@ bool HealthChannel::reportStatus(const std::string& key,
   return impl_->reportStatus(key, value);
 }
 
+bool HealthChannel::reportMetrics(const std::map<std::string, double>& metrics) {
+  return impl_->reportMetrics(metrics);
+}
+
 uint64_t HealthChannel::getAliveCounter() const {
   return impl_->getAliveCounter();
 }
@@ -152,6 +191,10 @@ HealthChannelStatus HealthChannel::getStatus() const {
 }
 
 bool HealthChannel::isAlive() const { return impl_->isAlive(); }
+
+std::map<std::string, double> HealthChannel::getMetrics() const {
+  return impl_->getMetrics();
+}
 
 void HealthChannel::setTimeout(std::chrono::milliseconds timeout) noexcept {
   impl_->setTimeout(timeout);

@@ -93,6 +93,11 @@ int Daemon::run() {
 
   // 主循环
   while (running_) {
+    // 处理 IPC 客户端连接
+    if (ipc_server.isRunning()) {
+      ipc_server.acceptOne();
+    }
+
     // 处理配置重载请求
     if (reload_requested_) {
       reload_requested_ = false;

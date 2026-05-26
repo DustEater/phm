@@ -9,6 +9,7 @@ set(PHM_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/data_reporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/event_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/health_channel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/client_resource.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/monitor_framework.cpp
 )

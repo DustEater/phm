@@ -2,6 +2,7 @@
 #include <chrono>
 #include <string>
 
+#include "faw/phm/health_channel.h"
 #include "faw/phm/logger.h"
 #include "faw/phm/monitor.h"
 #include "faw/phm/platform.h"
@@ -62,14 +63,12 @@ class ResourceMonitor : public IMonitor {
   PhmEvent check() override {
     PhmEvent event;
     if (!platform_ || pid_ <= 0) {
-      // 尝试重新发现进程
       if (!process_name_.empty()) {
         pid_ = platform_->getProcessId(process_name_);
       }
       return event;
     }
 
-    // 检查进程是否仍存在
     if (!platform_->processExists(pid_)) {
       pid_ = -1;
       state_ = SeState::ERROR;
@@ -82,9 +81,41 @@ class ResourceMonitor : public IMonitor {
       return event;
     }
 
-    // CPU 使用率
-    double cpu = platform_->getCpuUsage(pid_);
-    uint64_t mem = platform_->getMemoryUsageBytes(pid_);
+    auto getMetricWithFallback = [this](const std::string& key,
+                                        auto osFn, double& last_val) -> double {
+      if (health_channel_) {
+        auto metrics = health_channel_->getMetrics();
+        auto it = metrics.find(key);
+        if (it != metrics.end()) {
+          last_val = it->second;
+          return it->second;
+        }
+      }
+
+      double val = osFn();
+      if (val > 0.0 || key == "fd_count") {
+        last_val = val;
+        return val;
+      }
+
+      return last_val;
+    };
+
+    double cpu = getMetricWithFallback(
+        "cpu",
+        [this]() { return platform_->getCpuUsage(pid_); },
+        last_cpu_);
+
+    uint64_t mem = static_cast<uint64_t>(getMetricWithFallback(
+        "memory_bytes",
+        [this]() { return static_cast<double>(platform_->getMemoryUsageBytes(pid_)); },
+        last_memory_));
+
+    double fd = getMetricWithFallback(
+        "fd_count",
+        [this]() { return static_cast<double>(platform_->getOpenFileCount(pid_)); },
+        last_fd_);
+    (void)fd;
 
     // 检查 CPU 阈值
     if (config_.error_threshold > 0.0 && cpu >= config_.error_threshold) {
@@ -136,6 +167,16 @@ class ResourceMonitor : public IMonitor {
     callback_ = std::move(cb);
   }
 
+  void setHealthChannel(HealthChannel* hc) { health_channel_ = hc; }
+
+  std::map<std::string, double> collectMetrics() override {
+    std::map<std::string, double> m;
+    m["cpu_usage"] = last_cpu_;
+    m["memory_bytes"] = last_memory_;
+    m["fd_count"] = last_fd_;
+    return m;
+  }
+
  private:
   static std::string generateId() {
     static std::atomic<uint64_t> counter{0};
@@ -156,7 +197,12 @@ class ResourceMonitor : public IMonitor {
   std::atomic<SeState> state_;
   pid_t pid_;
   std::unique_ptr<Platform> platform_;
+  HealthChannel* health_channel_{nullptr};
   EventCallback callback_;
+
+  double last_cpu_{0.0};
+  double last_memory_{0.0};
+  double last_fd_{0.0};
 
   uint64_t last_cpu_time_;
   std::chrono::steady_clock::time_point last_sys_time_;

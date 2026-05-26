@@ -284,13 +284,15 @@ class PhmEngine::Impl {
       // 根据 Monitor 类型收集特有指标
       switch (monitor->getType()) {
         case MonitorType::RESOURCE: {
-          record.metrics["cpu_usage"] = 0.0;
-          record.metrics["memory_bytes"] = 0.0;
-          record.metrics["fd_count"] = 0.0;
+          auto m = monitor->collectMetrics();
+          record.metrics["cpu_usage"] = m["cpu_usage"];
+          record.metrics["memory_bytes"] = m["memory_bytes"];
+          record.metrics["fd_count"] = m["fd_count"];
           break;
         }
         case MonitorType::ALIVE: {
-          record.metrics["alive_counter"] = 0.0;
+          auto m = monitor->collectMetrics();
+          record.metrics["alive_counter"] = m["alive_counter"];
           break;
         }
         case MonitorType::PROCESS_LIFECYCLE: {

@@ -37,6 +37,9 @@ class IpcServer {
   /// 是否在运行
   bool isRunning() const noexcept;
 
+  /// 非阻塞接收并处理一个客户端连接
+  void acceptOne();
+
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;

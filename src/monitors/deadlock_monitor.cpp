@@ -3,6 +3,12 @@
 #include <string>
 #include <thread>
 
+#include <dirent.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "faw/phm/health_channel.h"
 #include "faw/phm/logger.h"
 #include "faw/phm/monitor.h"
@@ -10,6 +16,49 @@
 
 namespace faw {
 namespace phm {
+
+namespace {
+
+bool checkThreadByName(const std::string& thread_name) {
+  DIR* dir = opendir("/proc/self/task");
+  if (!dir) return false;
+
+  bool found = false;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (entry->d_name[0] == '.') continue;
+
+    std::string comm_path = std::string("/proc/self/task/") + entry->d_name + "/comm";
+    int fd = open(comm_path.c_str(), O_RDONLY);
+    if (fd < 0) continue;
+
+    char buf[256];
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (n <= 0) continue;
+    buf[n] = '\0';
+
+    std::string comm(buf);
+    size_t newline = comm.find('\n');
+    if (newline != std::string::npos) {
+      comm.resize(newline);
+    }
+
+    if (comm == thread_name) {
+      pid_t tid = static_cast<pid_t>(std::stoul(entry->d_name));
+      int ret = tgkill(getpid(), tid, 0);
+      if (ret == 0 || errno != ESRCH) {
+        found = true;
+        break;
+      }
+    }
+  }
+  closedir(dir);
+  return found;
+}
+
+}  // namespace
 
 /// 死锁/挂死检测器
 ///
@@ -69,10 +118,8 @@ class DeadlockMonitor : public IMonitor {
     if (health_channel_) {
       alive = health_channel_->isAlive();
     } else {
-      // 使用平台 API 检测线程存活
-      // 简化：假设有指定线程 ID 可检测
       if (!thread_name_.empty()) {
-        // 查找线程并检测
+        alive = checkThreadByName(thread_name_);
       }
     }
 

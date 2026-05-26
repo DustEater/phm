@@ -57,6 +57,10 @@ class IMonitor {
 
   /// 设置事件回调（在 check() 中被调用）
   virtual void setEventCallback(EventCallback cb) = 0;
+
+  /// 采集当前指标数据（用于数据上报）
+  /// @return 键值对指标集合
+  virtual std::map<std::string, double> collectMetrics() { return {}; }
 };
 
 /// Monitor 工厂函数类型

@@ -5,7 +5,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <sstream>
 #include <string>
 
@@ -63,6 +65,12 @@ class IpcServer::Impl {
     // 设置权限
     chmod(endpoint_.c_str(), 0666);
 
+    // 设置为非阻塞模式
+    int flags = fcntl(server_fd_, F_GETFL, 0);
+    if (flags >= 0) {
+      fcntl(server_fd_, F_SETFL, flags | O_NONBLOCK);
+    }
+
     running_ = true;
     PHM_LOG_INFO("IPC server started at %s", endpoint_.c_str());
     return true;
@@ -79,14 +87,17 @@ class IpcServer::Impl {
 
   bool isRunning() const noexcept { return running_; }
 
-  /// 处理一个客户端请求（简单阻塞处理）
+  /// 处理一个客户端请求（非阻塞）
   void handleClient() {
     struct sockaddr_un client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
     int client_fd =
         accept(server_fd_, (struct sockaddr*)&client_addr, &addr_len);
-    if (client_fd < 0) return;
+    if (client_fd < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) return;
+      return;
+    }
 
     // 读取请求
     char buf[4096];
@@ -282,6 +293,7 @@ IpcServer::~IpcServer() = default;
 bool IpcServer::start() { return impl_->start(); }
 void IpcServer::stop() { impl_->stop(); }
 bool IpcServer::isRunning() const noexcept { return impl_->isRunning(); }
+void IpcServer::acceptOne() { impl_->handleClient(); }
 
 }  // namespace phm
 }  // namespace faw

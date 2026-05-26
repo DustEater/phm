@@ -95,6 +95,12 @@ class AliveMonitor : public IMonitor {
 
   void setHealthChannel(HealthChannel* hc) { health_channel_ = hc; }
 
+  std::map<std::string, double> collectMetrics() override {
+    std::map<std::string, double> m;
+    m["alive_counter"] = static_cast<double>(last_counter_);
+    return m;
+  }
+
  private:
   static std::string generateId() {
     static std::atomic<uint64_t> counter{0};

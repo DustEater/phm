@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -55,6 +56,11 @@ class HealthChannel {
   /// @return true 上报成功
   bool reportStatus(const std::string& key, const std::string& value);
 
+  /// 上报一组结构化指标（如 CPU/内存/FD 等）
+  /// @param metrics 键值对，key 不超过 24 字符
+  /// @return true 写入成功
+  bool reportMetrics(const std::map<std::string, double>& metrics);
+
   /// --- 以下方法由 PHM 引擎/Monitor 调用 ---
 
   /// 获取最新 Alive 计数器值
@@ -65,6 +71,9 @@ class HealthChannel {
 
   /// 检查是否存活（在 timeout 内计数器有更新）
   bool isAlive() const;
+
+  /// 读取供应商上报的指标
+  std::map<std::string, double> getMetrics() const;
 
   /// 获取通道名称
   const std::string& name() const noexcept { return name_; }
