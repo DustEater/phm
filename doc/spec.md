@@ -49,6 +49,8 @@ flowchart TB
         RM["Resource Monitor"]
         DM["Deadlock Monitor"]
         AM["Alive Monitor"]
+        HC["HealthChannel<br/>共享内存通信"]
+        RR["ProcessResourceReporter<br/>供应商资源自采"]
         DR["DataReporter"]
     end
 
@@ -66,6 +68,10 @@ flowchart TB
     MF --> RM
     MF --> DM
     MF --> AM
+    MF --> HC
+    HC -.-> AM
+    HC -.-> RM
+    RR --> HC
     ENGINE --> DR
     PLM --> PAL
     RM --> PAL
@@ -84,14 +90,14 @@ flowchart TB
         MG["Monitor Group<br/>各 SE 的 Monitor"]
     end
 
-    subgraph UP["上游进程 (集成方)"]
-        CLI["faw::phm::Client"]
-        E2["faw::phm::Engine<br/>(libphm.so)"]
+    subgraph SP["供应商进程（被监督方）"]
+        HC["HealthChannel<br/>心跳 + 资源指标上报"]
+        RR["ProcessResourceReporter<br/>(可选) 进程资源自采"]
     end
 
-    IPC <==> |IPC / JSON-RPC| CLI
-    CLI --> E2
-    IPC --> PE --> MG
+    HC <--> |共享内存| MG
+    IPC --> PE
+    PE --> MG
 ```
 
 ### 2.3 核心数据流
@@ -116,6 +122,13 @@ flowchart LR
 
     PAL --> KERNEL["Linux / QNX Kernel"]
 
+    subgraph SPROC["供应商进程"]
+        RR["ProcessResourceReporter"] --> HC["HealthChannel"]
+    end
+
+    HC -.-> |供应商自报指标| RM
+    HC -.-> |心跳状态| AM
+
     PE --> DR["DataReporter"]
     DR --> LOCAL["Local File<br/>(.jsonl)"]
     DR --> UPLOAD["Uploader<br/>云端上传接口"]
@@ -137,6 +150,9 @@ flowchart LR
 | **EventManager**      | `src/event_manager.cpp`     | 事件队列，告警分级，通知分发                    |
 | **PAL**               | `src/platform/pal.cpp`      | 平台抽象接口定义和工厂方法                     |
 | **DataReporter**      | `src/data_reporter.cpp`     | Monitor 采样数据本地落盘 + 云端上传框架         |
+| **HealthChannel**     | `src/health_channel.cpp`    | 共享内存健康通道，心跳 + 指标上报/读取            |
+| **ProcessResourceReporter** | `src/client_resource.cpp` | 供应商进程资源自采（getrusage），通过 HealthChannel 上报 |
+| **client.h**          | `include/faw/phm/client.h`  | 供应商唯一头文件入口，物理隔离 daemon 内部 API    |
 
 #### 3.1.1 Monitor 插件
 
@@ -144,8 +160,8 @@ flowchart LR
 | ----------------------- | -------------------------------------------- | --------------------------------- |
 | ProcessLifecycleMonitor | `src/monitors/process_lifecycle_monitor.cpp` | 进程启动/停止/重启检测，进程存活轮询               |
 | ResourceMonitor         | `src/monitors/resource_monitor.cpp`          | CPU 使用率、内存占用、FD 数量监控              |
-| DeadlockMonitor         | `src/monitors/deadlock_monitor.cpp`          | 通过 HealthChannel 定时写入和检查实现挂死/死锁检测 |
-| AliveMonitor            | `src/monitors/alive_monitor.cpp`             | 心跳检测，AliveCounter 递增校验            |
+| DeadlockMonitor         | `src/monitors/deadlock_monitor.cpp`          | 通过 HealthChannel 响应性检查或线程名检测实现挂死/死锁检测 |
+| AliveMonitor            | `src/monitors/alive_monitor.cpp`             | 心跳检测，AliveCounter 递增校验及 isAlive 超时检查      |
 
 ### 3.2 phmd 守护进程模块
 
@@ -357,6 +373,13 @@ namespace faw::phm {
 
 // ===== HealthChannel =====
 /// 健康通道：被监督进程通过此接口上报活性和状态
+///
+/// 双向数据通道：
+///   - 供应商侧：report() 上报心跳，reportMetrics() 上报资源指标
+///   - daemon 侧：isAlive() / getAliveCounter() 读取心跳，getMetrics() 读取资源指标
+///
+/// 底层通过共享内存（shm_open + mmap）实现，供应商进程和 daemon 进程
+/// 通过同一块共享内存通信，零拷贝、无需锁。
 class HealthChannel {
 public:
     explicit HealthChannel(std::string name);
@@ -370,17 +393,26 @@ public:
     HealthChannel(HealthChannel&&) noexcept;
     HealthChannel& operator=(HealthChannel&&) noexcept;
 
-    /// 被监督进程调用：上报 Alive 计数器递增
+    // ──── 供应商侧（发送端）────
+    /// 上报 Alive 计数器递增
     bool report(uint64_t alive_counter);
 
-    /// 被监督进程调用：上报自定义状态数据
+    /// 上报自定义状态数据（键值对字符串）
     bool reportStatus(const std::string& key, const std::string& value);
 
-    /// PHM 侧调用：获取最新 Alive 计数
+    /// 上报结构化指标（如 CPU 使用率、内存占用、FD 数量）
+    /// 指标数据通过共享内存传递给 daemon 的 ResourceMonitor
+    bool reportMetrics(const std::map<std::string, double>& metrics);
+
+    // ──── daemon 侧（接收端）────
+    /// 获取最新 Alive 计数
     uint64_t getAliveCounter() const;
 
-    /// PHM 侧调用：检查是否为活跃状态
+    /// 检查是否为活跃状态（基于最后一次更新时间戳）
     bool isAlive() const;
+
+    /// 读取供应商上报的结构化指标
+    std::map<std::string, double> getMetrics() const;
 
     /// 获取通道名称
     const std::string& name() const noexcept { return name_; }
@@ -416,6 +448,10 @@ public:
 
     /// 获取监控名称
     virtual const std::string& name() const noexcept = 0;
+
+    /// 采集当前监控指标的数值快照（供 DataReporter 使用）
+    /// 返回键值对映射，如 {"cpu_usage": 45.2, "memory_bytes": 12345678}
+    virtual std::map<std::string, double> collectMetrics() { return {}; }
 
     // 事件回调
     using EventCallback = std::function<void(const PhmEvent&)>;
@@ -958,8 +994,10 @@ phm/
 │   └── faw/
 │       └── phm/
 │           ├── phm.h               # 统一包含头文件
+│           ├── client.h            # 供应商唯一头文件入口
 │           ├── types.h             # 枚举和结构体定义
 │           ├── health_channel.h    # 健康通道
+│           ├── resource_reporter.h # 进程资源自采工具
 │           ├── monitor.h           # IMonitor 抽象接口
 │           ├── supervised_entity.h # SupervisedEntity
 │           ├── phm_engine.h        # PhmEngine
@@ -976,7 +1014,8 @@ phm/
 │   ├── data_reporter.cpp           # 数据上报实现
 │   ├── event_manager.cpp           # 事件管理
 │   ├── logger.cpp                  # Logger 实现
-│   └── health_channel.cpp          # 健康通道实现
+│   ├── health_channel.cpp          # 健康通道实现
+│   ├── client_resource.cpp         # 进程资源自采 (ProcessResourceReporter)
 │   ├── monitors/
 │   │   ├── process_lifecycle_monitor.cpp
 │   │   ├── resource_monitor.cpp
@@ -1090,7 +1129,7 @@ enum class PhmError : int32_t {
 
 - **看门狗自我监控**：PHM 自身挂死时，由外部 watchdog 复位
 - **所有 API 线程安全**：内部使用细粒度锁（per-SE lock 而非全局锁）
-- **异常安全**：所有 Monitor check() 方法捕获异常，防止单个 Monitor 崩溃影响整
+- **异常安全**：所有 Monitor check() 方法捕获异常，防止单个 Monitor 崩溃影响整个框架
 - **降级策略**：平台 API 调用失败时返回缓存值 + 错误日志，不级联失败
 
 ***

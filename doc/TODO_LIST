@@ -1,0 +1,108 @@
+PHM 待办事项清单
+================
+
+## P0 - 数据链路打通
+
+### [x] 1. 新增 client.h 头文件隔离
+- 文件: include/faw/phm/client.h（新增）
+- 说明: 供应商唯一头文件，只暴露 HealthChannel。
+  daemon 内部头文件（phm_engine.h / monitor.h / platform.h 等）不提供给供应商，
+  实现物理级接口隔离。
+- 产出: 供应商 #include "faw/phm/client.h" 即可使用，无法引用内部 API
+
+### [x] 2. HealthChannel 增加 reportMetrics / getMetrics 指标通道
+- 文件: include/faw/phm/health_channel.h, src/health_channel.cpp
+- 说明: 共享内存中扩展指标槽（16 键值对），供应商写入、daemon 读取
+- 新增接口:
+  ```cpp
+  bool reportMetrics(const std::map<std::string, double>& metrics);
+  std::map<std::string, double> getMetrics() const;
+  ```
+
+### [x] 3. 新增 resource_reporter.h + client_resource.cpp
+- 文件:
+  - include/faw/phm/resource_reporter.h（新增）
+  - src/client_resource.cpp（新增，加入 libphm.so）
+- 说明: ProcessResourceReporter 供应商自采工具
+  - 使用 POSIX getrusage(RUSAGE_SELF) 为主，/proc 为可选兜底
+  - 采集 CPU 使用率、内存 RSS、FD 数量
+  - 自动通过 HealthChannel::reportMetrics() 上报
+
+### [x] 4. ResourceMonitor 增加 HealthChannel 读取 + OS 兜底逻辑
+- 文件: src/monitors/resource_monitor.cpp
+- 说明: check() 中优先读取 HealthChannel 的 reportMetrics 数据，
+  读不到或不全时再通过 Platform API 从 OS 读取兜底
+- 优先级: HealthChannel metrics > Platform::getCpuUsage(pid) > 保持上次值
+
+### [x] 5. collectAndReport 占位指标替换为真实值
+- 文件: src/phm_engine.cpp:268-309
+- 说明: 当前 cpu_usage / memory_bytes / fd_count / alive_counter 全是 0.0
+- 要求: 从各 Monitor 实例读取真实值（通过 IMonitor::collectMetrics() 或 event.metadata）
+
+---
+
+## P1 - 系统功能补全
+
+### [x] 6. DeadlockMonitor 线程检测分支实现
+- 文件: src/monitors/deadlock_monitor.cpp:74-76
+- 说明: 当 health_channel_ 为空、有 thread_name_ 时，检测分支是空的
+- 要求: 调用 platform_->checkThreadAlive(thread_name_) 完成实际检测
+
+### [x] 7. IPC Server accept 循环接入 daemon 主循环
+- 文件: daemon/ipc_server.cpp, daemon/daemon.cpp
+- 说明: IpcServer::Impl::handleClient() 已实现但从未被调用，
+  服务器只 bind/listen 但没有 accept 循环
+- 要求: 在 daemon 主循环中接入 accept 并处理客户端请求
+
+### [x] 8. DataReporter 集成验证
+- 文件: src/phm_engine.cpp (collectAndReport)
+- 说明: 确认每个 tick 采集的数据正确写入 /var/log/phmd/data/*/ 下的 .jsonl 文件
+- 验证: cat /var/log/phmd/data/*/$(date +%Y-%m-%d)-*.jsonl
+
+---
+
+## P2 - 测试覆盖
+
+### [ ] 9. PhmEngine 单元测试
+- 文件: tests/test_phm_engine.cpp
+- 说明: 当前已标记为待完成 (tasks.md 4.2.8)
+- 覆盖: 创建/启动/停止、添加/移除 SE、多 SE 状态聚合
+
+### [ ] 10. Monitor 单元测试
+- 文件: tests/test_monitors.cpp
+- 说明: 需要 mock Platform 来测试各 Monitor 的 check() 行为
+- 覆盖: ProcessLifecycleMonitor, ResourceMonitor, AliveMonitor, DeadlockMonitor
+
+### [ ] 11. PAL 平台抽象层 mock 测试
+- 文件: tests/test_pal_platform.cpp (tasks.md 2.3.2, 2.3.3)
+- 说明: 为 Monitor 单元测试提供可控的测试环境
+
+---
+
+## P3 - 部署与稳定性
+
+### [ ] 12. systemd service 单元文件
+- 文件: deploy/phmd.service
+- 说明: 支持 phmd 作为系统服务自启动 (tasks.md 6.3.1)
+
+### [ ] 13. 配置文件示例更新
+- 文件: config/phm_se_config.json
+- 说明: 对齐最新的 SEConfig 字段，确保示例配置可直接用于测试
+
+### [ ] 14. 72 小时稳定性测试
+- 说明: 连续运行 72 小时，监控内存泄漏和资源消耗 (tasks.md 7.2.3)
+
+---
+
+## P4 - 功能增强
+
+### [ ] 15. DeadlockMonitor 增加调用栈信息
+- 文件: src/monitors/deadlock_monitor.cpp
+- 说明: 死锁事件 metadata 中增加调用栈/堆栈信息，便于诊断
+
+### [ ] 16. Uploader 具体实现
+- 文件: src/uploader_http.cpp / src/uploader_mqtt.cpp
+- 说明: 基于 Uploader 抽象接口实现 HTTP/MQTT 上传器，对接云端
+
+### [ ] 17. client.h 提供纯 C wrapper（可选）
+- 说明: 针对 C 语言或非 C++17 编译器的供应商，提供 extern "C" 的 HealthChannel 接口
