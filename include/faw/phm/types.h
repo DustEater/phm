@@ -1,8 +1,10 @@
 #ifndef FAW_PHM_TYPES_H
 #define FAW_PHM_TYPES_H
 
-/// @file types.h
-/// @brief PHM 核心类型定义：枚举、结构体、错误码
+/**
+ * @file types.h
+ * @brief PHM 核心类型定义：枚举、结构体、错误码
+ * */
 
 #include <chrono>
 #include <cstdint>
@@ -17,7 +19,9 @@ namespace phm {
 // 枚举定义
 // =============================================================================
 
-/// 监督实体状态（非严格状态机）
+/**
+ * 监督实体状态（非严格状态机）
+ * */
 enum class SeState : uint8_t {
   INIT = 0,     ///< 初始状态，Monitor 尚未启动
   RUNNING = 1,  ///< 健康，所有指标正常
@@ -27,7 +31,9 @@ enum class SeState : uint8_t {
   FATAL = 5     ///< 致命，进程已死或不可恢复
 };
 
-/// 告警严重级别
+/**
+ * 告警严重级别
+ * */
 enum class Severity : uint8_t {
   INFO = 0,      ///< 信息性事件
   WARNING = 1,   ///< 警告，需关注
@@ -36,7 +42,9 @@ enum class Severity : uint8_t {
   FATAL = 4      ///< 致命事件，系统不可用
 };
 
-/// 监控类型
+/**
+ * 监控类型
+ * */
 enum class MonitorType : uint8_t {
   PROCESS_LIFECYCLE = 0,  ///< 进程生命周期监控
   RESOURCE = 1,           ///< CPU/内存资源监控
@@ -45,7 +53,9 @@ enum class MonitorType : uint8_t {
   CUSTOM = 4              ///< 自定义监控
 };
 
-/// PHM 错误码
+/**
+ * PHM 错误码
+ * */
 enum class PhmError : int32_t {
   OK = 0,                    ///< 成功
   GENERIC_ERROR = -1,        ///< 通用错误
@@ -66,14 +76,18 @@ enum class PhmError : int32_t {
 // 结构体定义
 // =============================================================================
 
-/// 健康通道状态
+/**
+ * 健康通道状态
+ * */
 struct HealthChannelStatus {
   uint64_t alive_counter{0};                         ///< Alive 计数器值
   bool is_alive{false};                              ///< 是否存活
   std::chrono::steady_clock::time_point last_check;  ///< 上次检查时间
 };
 
-/// PHM 事件
+/**
+ * PHM 事件
+ * */
 struct PhmEvent {
   std::string id;                                   ///< 事件唯一 ID (UUID)
   std::string source_se;                            ///< 来源 SE 名称
@@ -85,7 +99,9 @@ struct PhmEvent {
   std::map<std::string, std::string> metadata;      ///< 扩展元数据
 };
 
-/// 监控配置
+/**
+ * 监控配置
+ * */
 struct MonitorConfig {
   MonitorType type{MonitorType::CUSTOM};      ///< 监控类型
   std::map<std::string, std::string> params;  ///< 监控特有参数
@@ -97,7 +113,9 @@ struct MonitorConfig {
   bool enabled{true};                         ///< 是否启用
 };
 
-/// 监督实体 SE 配置
+/**
+ * 监督实体 SE 配置
+ * */
 struct SEConfig {
   std::string name;                               ///< SE 名称（唯一标识）
   std::string description;                        ///< 描述
@@ -110,7 +128,9 @@ struct SEConfig {
   bool enabled{true};                             ///< 是否启用
 };
 
-/// 全局 PHM 配置
+/**
+ * 全局 PHM 配置
+ * */
 struct PhmConfig {
   std::string app_name{"phmd"};                       ///< 应用名称
   std::string version{"1.0.0"};                       ///< 版本号
@@ -122,7 +142,9 @@ struct PhmConfig {
   uint32_t event_queue_size{1024};                    ///< 事件队列容量
 };
 
-/// PhmEngine 统计信息
+/**
+ * PhmEngine 统计信息
+ * */
 struct EngineStats {
   size_t total_entities{0};             ///< SE 总数
   size_t active_entities{0};            ///< 活跃 SE 数
@@ -132,7 +154,9 @@ struct EngineStats {
   uint64_t uptime_ms{0};                ///< 运行时间 (ms)
 };
 
-/// 守护进程配置（扩展自 PhmConfig）
+/**
+ * 守护进程配置（扩展自 PhmConfig）
+ * */
 struct DaemonConfig {
   PhmConfig phm;                              ///< 基础 PHM 配置
   bool daemonize{true};                       ///< 是否守护进程化
